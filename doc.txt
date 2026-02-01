@@ -1,0 +1,14 @@
+. Hệ thống Đặt vé/Thanh toán (High Concurrency & Consistency)
+Đây là bài toán kinh điển để luyện tư duy về Transaction và Race Condition.
+
+Bài toán: Xây dựng hệ thống bán vé xem phim hoặc đặt hàng Flash Sale.
+
+Thách thức cho Middle:
+
+Race Condition: Làm sao để 1000 người cùng nhấn "Mua" 1 chiếc vé cuối cùng mà không bị "bán lố" (Overbooking)?
+
+Distributed Lock: Sử dụng Redis Lock hoặc Database Lock (Pessimistic/Optimistic) để xử lý tranh chấp.
+
+Idempotency: Đảm bảo nếu User nhấn thanh toán 2 lần do mạng lag, hệ thống chỉ trừ tiền 1 lần duy nhất.
+
+Tư duy mở rộng: Học về Database Isolation Levels và cách Node.js xử lý Async để không làm nghẽn Event Loop.
