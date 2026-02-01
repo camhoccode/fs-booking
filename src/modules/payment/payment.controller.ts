@@ -9,7 +9,9 @@ import {
   HttpCode,
   HttpStatus,
   BadRequestException,
+  UnauthorizedException,
   UseGuards,
+  Logger,
 } from '@nestjs/common';
 import type { Request } from 'express';
 import { PaymentService } from './payment.service';
@@ -17,6 +19,11 @@ import type { WebhookPayload } from './payment.service';
 import { CreatePaymentDto } from './dto/create-payment.dto';
 import { AuthGuard } from '../../common/guards';
 import { CurrentUser } from '../../common/decorators';
+import { WebhookSignatureService } from '../../common/services';
+
+// UUID v4 regex for idempotency key validation (standardized across the app)
+const UUID_V4_REGEX =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 /**
  * PaymentController handles payment-related HTTP endpoints
@@ -29,10 +36,19 @@ import { CurrentUser } from '../../common/decorators';
  * Architecture:
  * - On payment success: confirms seats in Redis via BookingService
  * - On payment failed: releases seats in Redis via BookingService
+ *
+ * Security:
+ * - Webhook signature verification for each payment provider
+ * - Standardized idempotency key validation (UUID v4)
  */
 @Controller('api/payments')
 export class PaymentController {
-  constructor(private readonly paymentService: PaymentService) {}
+  private readonly logger = new Logger(PaymentController.name);
+
+  constructor(
+    private readonly paymentService: PaymentService,
+    private readonly webhookSignatureService: WebhookSignatureService,
+  ) {}
 
   /**
    * Create new payment
@@ -78,10 +94,8 @@ export class PaymentController {
       );
     }
 
-    // Validate idempotency key format (UUID v4)
-    const uuidV4Regex =
-      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-    if (!uuidV4Regex.test(idempotencyKey)) {
+    // Validate idempotency key format (UUID v4) - standardized validation
+    if (!UUID_V4_REGEX.test(idempotencyKey)) {
       throw new BadRequestException(
         'X-Idempotency-Key must be a valid UUID v4. Example: 550e8400-e29b-41d4-a716-446655440000',
       );
@@ -107,6 +121,7 @@ export class PaymentController {
    *
    * @example
    * POST /api/payments/webhook/momo
+   * Headers: { "X-Signature": "hmac-sha256-signature" }
    * Body: {
    *   "transaction_id": "TXN_MOMO_abc123",
    *   "status": "success",
@@ -116,9 +131,9 @@ export class PaymentController {
    *
    * Response 200: { "success": true, "message": "Payment completed successfully" }
    *
-   * Security Notes:
-   * - In production, verify signature from payment gateway
-   * - Whitelist IP addresses of payment providers
+   * Security:
+   * - Webhook signature verification required for all providers
+   * - Logs security events for invalid signatures
    *
    * Idempotent:
    * - Multiple webhook calls for same transaction will not cause duplicate processing
@@ -128,12 +143,32 @@ export class PaymentController {
   async handleWebhook(
     @Param('provider') provider: string,
     @Body() payload: WebhookPayload,
-    @Headers('x-signature') signature?: string,
+    @Headers('x-signature') signature: string | undefined,
+    @Req() req: Request,
   ) {
-    // TODO: Verify webhook signature from payment gateway in production
-    // if (!this.verifyWebhookSignature(provider, payload, signature)) {
-    //   throw new UnauthorizedException('Invalid webhook signature');
-    // }
+    const clientIp = req.ip || req.socket?.remoteAddress || 'unknown';
+
+    // Verify webhook signature from payment gateway
+    const isValidSignature = this.webhookSignatureService.verifySignature(
+      provider,
+      payload as unknown as Record<string, unknown>,
+      signature,
+    );
+
+    if (!isValidSignature) {
+      this.logSecurityEvent('WEBHOOK_UNAUTHORIZED', {
+        provider,
+        ip: clientIp,
+        transactionId: payload.transaction_id,
+      });
+
+      throw new UnauthorizedException({
+        statusCode: 401,
+        errorCode: 'INVALID_WEBHOOK_SIGNATURE',
+        message: 'Invalid webhook signature',
+        timestamp: new Date().toISOString(),
+      });
+    }
 
     // Validate payload
     if (!payload.transaction_id) {
@@ -148,6 +183,10 @@ export class PaymentController {
         'status must be one of: success, failed, pending',
       );
     }
+
+    this.logger.log(
+      `Webhook received from ${provider} for transaction ${payload.transaction_id}`,
+    );
 
     return this.paymentService.handleWebhook(provider, payload);
   }
@@ -200,8 +239,22 @@ export class PaymentController {
         payment_url: payment.payment_url,
         paid_at: payment.paid_at,
         expires_at: payment.expires_at,
-        created_at: (payment as any).created_at,
+        created_at: payment.createdAt,
       },
     };
+  }
+
+  /**
+   * Log security events for monitoring and alerting
+   */
+  private logSecurityEvent(
+    event: string,
+    details: Record<string, unknown>,
+  ): void {
+    this.logger.warn(`[SECURITY] ${event}`, {
+      event,
+      timestamp: new Date().toISOString(),
+      ...details,
+    });
   }
 }

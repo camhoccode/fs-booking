@@ -3,24 +3,44 @@ import {
   ExecutionContext,
   Injectable,
   UnauthorizedException,
+  Logger,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { JwtService } from '@nestjs/jwt';
 import { Request } from 'express';
 import { CurrentUserData } from '../decorators/current-user.decorator';
 
 /**
- * Authentication guard
- * Validates JWT token and attaches user to request
+ * Authentication guard with proper JWT verification
+ * Validates JWT token signature and attaches user to request
  *
- * Note: This is a simplified implementation.
- * In production, integrate with your JWT/Auth service
+ * Security features:
+ * - Proper JWT signature verification using secret from environment
+ * - Token expiration validation
+ * - Security event logging for failed authentication attempts
  */
 @Injectable()
 export class AuthGuard implements CanActivate {
+  private readonly logger = new Logger(AuthGuard.name);
+
+  constructor(
+    private readonly jwtService: JwtService,
+    private readonly configService: ConfigService,
+  ) {}
+
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<Request>();
     const token = this.extractTokenFromHeader(request);
+    const clientIp = request.ip || request.socket?.remoteAddress || 'unknown';
 
     if (!token) {
+      this.logSecurityEvent('AUTH_TOKEN_MISSING', {
+        path: request.url,
+        method: request.method,
+        ip: clientIp,
+        userAgent: request.headers['user-agent'],
+      });
+
       throw new UnauthorizedException({
         statusCode: 401,
         errorCode: 'TOKEN_MISSING',
@@ -31,12 +51,43 @@ export class AuthGuard implements CanActivate {
     }
 
     try {
-      // TODO: Replace with actual JWT verification
-      // const payload = await this.jwtService.verifyAsync(token);
-      // For now, decode a simple mock token format: userId:email:role
-      const user = this.decodeToken(token);
+      const jwtSecret = this.configService.get<string>('JWT_SECRET');
+      if (!jwtSecret) {
+        this.logger.error('JWT_SECRET is not configured');
+        throw new Error('JWT configuration error');
+      }
+
+      const payload = await this.jwtService.verifyAsync<{
+        sub: string;
+        email: string;
+        role?: string;
+        iat?: number;
+        exp?: number;
+      }>(token, {
+        secret: jwtSecret,
+      });
+
+      const user: CurrentUserData = {
+        id: payload.sub,
+        email: payload.email,
+        role: payload.role || 'user',
+      };
+
       (request as Request & { user: CurrentUserData }).user = user;
-    } catch {
+
+      return true;
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+
+      this.logSecurityEvent('AUTH_TOKEN_INVALID', {
+        path: request.url,
+        method: request.method,
+        ip: clientIp,
+        userAgent: request.headers['user-agent'],
+        error: errorMessage,
+      });
+
       throw new UnauthorizedException({
         statusCode: 401,
         errorCode: 'TOKEN_INVALID',
@@ -45,8 +96,6 @@ export class AuthGuard implements CanActivate {
         path: request.url,
       });
     }
-
-    return true;
   }
 
   private extractTokenFromHeader(request: Request): string | undefined {
@@ -55,26 +104,16 @@ export class AuthGuard implements CanActivate {
   }
 
   /**
-   * Mock token decoder - Replace with JWT verification in production
+   * Log security events for monitoring and alerting
    */
-  private decodeToken(token: string): CurrentUserData {
-    // This is a placeholder. In production, use proper JWT verification
-    // Expected format for testing: base64(JSON.stringify({ id, email, role }))
-    try {
-      const decoded = Buffer.from(token, 'base64').toString('utf8');
-      const parsed = JSON.parse(decoded);
-
-      if (!parsed.id || !parsed.email) {
-        throw new Error('Invalid token payload');
-      }
-
-      return {
-        id: parsed.id,
-        email: parsed.email,
-        role: parsed.role || 'user',
-      };
-    } catch {
-      throw new Error('Token decode failed');
-    }
+  private logSecurityEvent(
+    event: string,
+    details: Record<string, unknown>,
+  ): void {
+    this.logger.warn(`[SECURITY] ${event}`, {
+      event,
+      timestamp: new Date().toISOString(),
+      ...details,
+    });
   }
 }

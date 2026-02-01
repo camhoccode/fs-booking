@@ -11,6 +11,13 @@ import { Request } from 'express';
 export const IDEMPOTENCY_KEY_HEADER = 'x-idempotency-key';
 
 /**
+ * UUID v4 regex - Standardized validation across the application
+ * This is the only accepted format for idempotency keys
+ */
+const UUID_V4_REGEX =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+/**
  * Custom decorator to extract idempotency key from request header
  *
  * @example
@@ -39,13 +46,13 @@ export const IdempotencyKey = createParamDecorator(
       });
     }
 
-    // Validate idempotency key format (UUID v4 recommended)
+    // Validate idempotency key format (UUID v4 only - standardized)
     if (idempotencyKey && !isValidIdempotencyKey(idempotencyKey)) {
       throw new BadRequestException({
         statusCode: 400,
         errorCode: 'INVALID_IDEMPOTENCY_KEY',
         message:
-          'Idempotency key must be a valid UUID or alphanumeric string (8-64 chars)',
+          'Idempotency key must be a valid UUID v4. Example: 550e8400-e29b-41d4-a716-446655440000',
         timestamp: new Date().toISOString(),
         path: request.url,
       });
@@ -57,12 +64,8 @@ export const IdempotencyKey = createParamDecorator(
 
 /**
  * Validate idempotency key format
- * Accepts: UUID v4 or alphanumeric string (8-64 characters)
+ * Accepts: UUID v4 only (standardized across the application)
  */
 function isValidIdempotencyKey(key: string): boolean {
-  const uuidV4Regex =
-    /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-  const alphanumericRegex = /^[a-zA-Z0-9_-]{8,64}$/;
-
-  return uuidV4Regex.test(key) || alphanumericRegex.test(key);
+  return UUID_V4_REGEX.test(key);
 }

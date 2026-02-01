@@ -7,6 +7,7 @@ import {
   Inject,
   forwardRef,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { v4 as uuidv4 } from 'uuid';
@@ -75,6 +76,7 @@ export class PaymentService {
     private readonly idempotencyService: IdempotencyService,
     @Inject(forwardRef(() => BookingService))
     private readonly bookingService: BookingService,
+    private readonly configService: ConfigService,
   ) {}
 
   /**
@@ -176,7 +178,7 @@ export class PaymentService {
           payment_method: dto.payment_method,
           status: 'pending',
           idempotency_key: idempotencyKey,
-          return_url: dto.return_url || process.env.DEFAULT_RETURN_URL,
+          return_url: dto.return_url || this.configService.get<string>('DEFAULT_RETURN_URL'),
           expires_at: paymentExpiresAt,
         });
       } catch (error) {

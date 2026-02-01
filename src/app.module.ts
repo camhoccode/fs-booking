@@ -5,6 +5,9 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
+// Common module for shared services
+import { CommonModule } from './common/common.module';
+
 // Feature modules
 import { RedisModule } from './modules/redis/redis.module';
 import { HealthModule } from './modules/health/health.module';
@@ -21,6 +24,7 @@ import { PaymentModule } from './modules/payment/payment.module';
  * - ConfigModule: Global configuration with .env support
  * - MongooseModule: MongoDB connection via MONGO_URI
  * - ScheduleModule: Task scheduling for cleanup jobs
+ * - CommonModule: Shared services (JWT, webhook signature, etc.)
  *
  * Feature Modules:
  * - RedisModule: Distributed locking and caching (global)
@@ -53,6 +57,9 @@ import { PaymentModule } from './modules/payment/payment.module';
 
     // Task scheduling for cleanup jobs
     ScheduleModule.forRoot(),
+
+    // Common module for shared services (JWT, webhook signature verification)
+    CommonModule,
 
     // Feature modules
     RedisModule,
