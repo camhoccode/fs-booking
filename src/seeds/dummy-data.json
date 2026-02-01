@@ -1,0 +1,99 @@
+{
+  "movies": [
+    {
+      "title": "Avengers: Endgame",
+      "duration": 181,
+      "genre": ["Action", "Adventure", "Sci-Fi"],
+      "poster_url": "https://example.com/avengers.jpg",
+      "description": "The Avengers must undo Thanos's actions and restore balance to the universe.",
+      "release_date": "2024-01-15",
+      "status": "now_showing"
+    },
+    {
+      "title": "Spider-Man: No Way Home",
+      "duration": 148,
+      "genre": ["Action", "Adventure", "Fantasy"],
+      "poster_url": "https://example.com/spiderman.jpg",
+      "description": "Spider-Man seeks the help of Doctor Strange to make the world forget he is Spider-Man.",
+      "release_date": "2024-02-01",
+      "status": "now_showing"
+    },
+    {
+      "title": "Dune: Part Two",
+      "duration": 166,
+      "genre": ["Action", "Adventure", "Drama"],
+      "poster_url": "https://example.com/dune2.jpg",
+      "description": "Paul Atreides unites with the Fremen to seek revenge against those who destroyed his family.",
+      "release_date": "2024-03-01",
+      "status": "coming_soon"
+    }
+  ],
+  "cinemas": [
+    {
+      "name": "CGV Vincom Center",
+      "address": "72 Le Thanh Ton, Quan 1",
+      "city": "Ho Chi Minh",
+      "phone": "1900 6017",
+      "is_active": true,
+      "screens": [
+        {
+          "screen_id": "screen_1",
+          "name": "Screen 1",
+          "type": "standard",
+          "total_seats": 120,
+          "seat_layout": { "rows": 10, "cols": 12, "unavailable": [] }
+        },
+        {
+          "screen_id": "screen_imax",
+          "name": "IMAX Hall",
+          "type": "imax",
+          "total_seats": 200,
+          "seat_layout": { "rows": 10, "cols": 20, "unavailable": ["A1", "A20", "J1", "J20"] }
+        }
+      ]
+    },
+    {
+      "name": "Lotte Cinema Landmark",
+      "address": "772A Dien Bien Phu, Binh Thanh",
+      "city": "Ho Chi Minh",
+      "phone": "1900 6017",
+      "is_active": true,
+      "screens": [
+        {
+          "screen_id": "screen_1",
+          "name": "Room 1",
+          "type": "standard",
+          "total_seats": 100,
+          "seat_layout": { "rows": 10, "cols": 10, "unavailable": [] }
+        }
+      ]
+    }
+  ],
+  "showtimes": [
+    {
+      "movie_index": 0,
+      "cinema_index": 0,
+      "screen_id": "screen_1",
+      "start_time": "2024-02-01T10:00:00.000Z",
+      "price": { "standard": 90000, "vip": 150000, "couple": 250000 }
+    },
+    {
+      "movie_index": 0,
+      "cinema_index": 0,
+      "screen_id": "screen_imax",
+      "start_time": "2024-02-01T14:00:00.000Z",
+      "price": { "standard": 150000, "vip": 200000, "couple": 350000 }
+    },
+    {
+      "movie_index": 1,
+      "cinema_index": 1,
+      "screen_id": "screen_1",
+      "start_time": "2024-02-01T19:00:00.000Z",
+      "price": { "standard": 85000, "vip": 130000, "couple": 220000 }
+    }
+  ],
+  "test_users": [
+    { "user_id": "user_001", "name": "Test User 1", "email": "test1@example.com" },
+    { "user_id": "user_002", "name": "Test User 2", "email": "test2@example.com" }
+  ]
+}
