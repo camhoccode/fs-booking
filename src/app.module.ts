@@ -41,12 +41,13 @@ import { PaymentModule } from './modules/payment/payment.module';
     // MongoDB connection with async configuration
     MongooseModule.forRootAsync({
       imports: [ConfigModule],
-      useFactory: async (configService: ConfigService) => ({
-        uri: configService.get<string>(
-          'MONGO_URI',
-          'mongodb://localhost:27017/fs-booking',
-        ),
-      }),
+      useFactory: async (configService: ConfigService) => {
+        const mongoUri = configService.get<string>('MONGO_URI');
+        if (!mongoUri) {
+          throw new Error('MONGO_URI is not defined in environment variables');
+        }
+        return { uri: mongoUri };
+      },
       inject: [ConfigService],
     }),
 

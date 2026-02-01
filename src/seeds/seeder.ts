@@ -7,7 +7,7 @@
  * Usage: npm run seed
  *
  * Environment Variables:
- * - MONGODB_URI: MongoDB connection string (default: mongodb://localhost:27017/fs-booking)
+ * - MONGO_URI: MongoDB connection string (required, from .env file)
  */
 
 import mongoose from 'mongoose';
@@ -181,11 +181,19 @@ function mapToObject(map: Map<string, SeatInfo>): Record<string, SeatInfo> {
  * Main seeder function
  */
 async function seed(): Promise<void> {
-  const mongoUri =
-    process.env.MONGODB_URI || 'mongodb://localhost:27017/fs-booking';
+  // Load .env file
+  const dotenv = await import('dotenv');
+  dotenv.config();
+
+  const mongoUri = process.env.MONGO_URI;
+
+  if (!mongoUri) {
+    logger.error('MONGO_URI is not defined in .env file');
+    process.exit(1);
+  }
 
   logger.info('Starting database seeder...');
-  logger.info(`Connecting to MongoDB: ${mongoUri}`);
+  logger.info(`Connecting to MongoDB: ${mongoUri.replace(/\/\/[^:]+:[^@]+@/, '//<credentials>@')}`);
 
   try {
     // Connect to MongoDB

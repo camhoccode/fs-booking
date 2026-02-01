@@ -633,7 +633,7 @@ curl http://localhost:7575/health
 | Service | Container Name | Port | URL |
 |---------|---------------|------|-----|
 | **App** | fs-booking-app | 7575 | http://localhost:7575 |
-| **MongoDB** | fs-booking-mongodb | 27017 | mongodb://localhost:27017 |
+| **MongoDB** | External (MongoDB Atlas) | - | From .env MONGO_URI |
 | **Redis** | fs-booking-redis | 6379 | redis://localhost:6379 |
 | Redis Commander* | fs-booking-redis-commander | 8081 | http://localhost:8081 |
 | Mongo Express* | fs-booking-mongo-express | 8082 | http://localhost:8082 |
@@ -724,7 +724,8 @@ PORT=7575
 JWT_SECRET=your-super-secret-jwt-key
 
 # Database (auto-configured in Docker)
-MONGO_URI=mongodb://mongodb:27017/fs-booking
+# Required - Your MongoDB Atlas connection string
+MONGO_URI=mongodb+srv://user:pass@cluster.mongodb.net/fs-booking
 REDIS_URL=redis://redis:6379
 
 # Payment Gateway (optional)
@@ -832,7 +833,7 @@ npm run seed
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `PORT` | Application port | `7575` |
-| `MONGO_URI` | MongoDB connection string | `mongodb://localhost:27017/fs-booking` |
+| `MONGO_URI` | MongoDB connection string | **Required** |
 | `REDIS_URL` | Redis connection string | `redis://localhost:6379` |
 | `JWT_SECRET` | JWT signing secret | Required |
 | `PAYMENT_GATEWAY_URL` | Payment gateway base URL | `https://payment.example.com` |
