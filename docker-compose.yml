@@ -12,15 +12,13 @@ services:
     restart: unless-stopped
     ports:
       - "${PORT:-7575}:7575"
+    env_file:
+      - .env
     environment:
       - NODE_ENV=production
       - PORT=7575
-      - MONGO_URI=mongodb://mongodb:27017/fs-booking
       - REDIS_URL=redis://redis:6379
-      - JWT_SECRET=${JWT_SECRET:-your-super-secret-jwt-key-change-in-production}
     depends_on:
-      mongodb:
-        condition: service_healthy
       redis:
         condition: service_healthy
     networks:
@@ -31,30 +29,6 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
-
-  # ============================================
-  # MongoDB Database
-  # ============================================
-  mongodb:
-    image: mongo:7
-    container_name: fs-booking-mongodb
-    restart: unless-stopped
-    ports:
-      - "${MONGO_PORT:-27017}:27017"
-    environment:
-      - MONGO_INITDB_DATABASE=fs-booking
-    volumes:
-      - mongodb_data:/data/db
-      - mongodb_config:/data/configdb
-    networks:
-      - fs-booking-network
-    healthcheck:
-      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
-    command: ["mongod", "--bind_ip_all"]
 
   # ============================================
   # Redis Cache
@@ -95,25 +69,6 @@ services:
     profiles:
       - debug
 
-  # ============================================
-  # Mongo Express (Optional - for debugging)
-  # ============================================
-  mongo-express:
-    image: mongo-express:latest
-    container_name: fs-booking-mongo-express
-    restart: unless-stopped
-    ports:
-      - "${MONGO_EXPRESS_PORT:-8082}:8081"
-    environment:
-      - ME_CONFIG_MONGODB_URL=mongodb://mongodb:27017/fs-booking
-      - ME_CONFIG_BASICAUTH=false
-    depends_on:
-      - mongodb
-    networks:
-      - fs-booking-network
-    profiles:
-      - debug
-
 # ============================================
 # Networks
 # ============================================
@@ -125,9 +80,5 @@ networks:
 # Volumes
 # ============================================
 volumes:
-  mongodb_data:
-    driver: local
-  mongodb_config:
-    driver: local
   redis_data:
     driver: local
