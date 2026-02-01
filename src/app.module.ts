@@ -7,6 +7,7 @@ import { AppService } from './app.service';
 
 // Feature modules
 import { RedisModule } from './modules/redis/redis.module';
+import { HealthModule } from './modules/health/health.module';
 import { MovieModule } from './modules/movie/movie.module';
 import { CinemaModule } from './modules/cinema/cinema.module';
 import { ShowtimeModule } from './modules/showtime/showtime.module';
@@ -54,6 +55,7 @@ import { PaymentModule } from './modules/payment/payment.module';
 
     // Feature modules
     RedisModule,
+    HealthModule,
     MovieModule,
     CinemaModule,
     ShowtimeModule,

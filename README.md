@@ -590,7 +590,47 @@ IdempotencyKeySchema.index({ expires_at: 1 }, { expireAfterSeconds: 0 });
 - Redis >= 7.0
 - npm or yarn
 
-### Installation Steps
+### Option 1: Docker (Recommended)
+
+```bash
+# 1. Clone the repository
+git clone <repository-url>
+cd fs-booking
+
+# 2. Start all services with Docker Compose
+docker-compose up -d
+
+# The following services will be running:
+# - App: http://localhost:3000
+# - MongoDB: localhost:27017
+# - Redis: localhost:6379
+
+# View logs
+docker-compose logs -f app
+
+# Stop all services
+docker-compose down
+```
+
+#### Development with Docker (Hot Reload)
+
+```bash
+# Start with development configuration
+docker-compose -f docker-compose.dev.yml up -d
+
+# Additional services available:
+# - Redis Commander: http://localhost:8081
+# - Mongo Express: http://localhost:8082
+```
+
+#### Production with Debug Tools
+
+```bash
+# Start with debug profile (includes Redis Commander & Mongo Express)
+docker-compose --profile debug up -d
+```
+
+### Option 2: Manual Installation
 
 ```bash
 # 1. Clone the repository
@@ -604,15 +644,11 @@ npm install
 cp .env.example .env
 
 # 4. Configure environment variables
-# Edit .env file with your settings:
-#   MONGO_URI=mongodb://localhost:27017/fs-booking
-#   REDIS_URL=redis://localhost:6379
-#   PORT=3000
+# Edit .env file with your settings
 
-# 5. Start MongoDB and Redis
-# Using Docker (optional):
-docker run -d -p 27017:27017 --name mongodb mongo:6
-docker run -d -p 6379:6379 --name redis redis:7
+# 5. Start MongoDB and Redis (using Docker)
+docker run -d -p 27017:27017 --name mongodb mongo:7
+docker run -d -p 6379:6379 --name redis redis:7-alpine
 
 # 6. Start development server
 npm run start:dev
@@ -645,9 +681,32 @@ npm run format        # Run Prettier
 
 ## 7. API Documentation
 
+### Health Check Endpoints
+
+Health check endpoints for Docker/Kubernetes:
+
+```
+GET /health       # Full health check (MongoDB + Redis)
+GET /health/live  # Liveness probe
+GET /health/ready # Readiness probe
+```
+
+**Response Example**:
+```json
+{
+  "status": "ok",
+  "timestamp": "2024-01-15T10:30:00.000Z",
+  "uptime": 3600,
+  "services": {
+    "mongodb": { "status": "up", "latency": 5 },
+    "redis": { "status": "up", "latency": 2 }
+  }
+}
+```
+
 ### Authentication
 
-All endpoints require authentication:
+All endpoints (except health) require authentication:
 
 ```
 Authorization: Bearer <jwt-token>
