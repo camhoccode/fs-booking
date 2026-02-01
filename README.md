@@ -585,94 +585,269 @@ IdempotencyKeySchema.index({ expires_at: 1 }, { expireAfterSeconds: 0 });
 
 ### Prerequisites
 
-- Node.js >= 18.x
-- MongoDB >= 6.0
-- Redis >= 7.0
-- npm or yarn
+- Docker >= 24.x & Docker Compose >= 2.x (recommended)
+- Or: Node.js >= 18.x, MongoDB >= 6.0, Redis >= 7.0
 
-### Option 1: Docker (Recommended)
+---
+
+## Docker Deployment
+
+### Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                     Docker Compose Stack                         │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  ┌──────────────────┐  ┌──────────────────┐  ┌───────────────┐  │
+│  │  fs-booking-app  │  │ fs-booking-mongo │  │fs-booking-redis│ │
+│  │                  │  │                  │  │               │  │
+│  │  NestJS App      │  │  MongoDB 7       │  │  Redis 7      │  │
+│  │  Port: 7575      │  │  Port: 27017     │  │  Port: 6379   │  │
+│  │                  │  │                  │  │               │  │
+│  │  Health: /health │  │  Volume: data    │  │  Volume: data │  │
+│  └────────┬─────────┘  └────────┬─────────┘  └───────┬───────┘  │
+│           │                     │                    │          │
+│           └─────────────────────┴────────────────────┘          │
+│                         fs-booking-network                       │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Quick Start (Production)
 
 ```bash
-# 1. Clone the repository
-git clone <repository-url>
+# Clone and start
+git clone https://github.com/camhoccode/fs-booking.git
 cd fs-booking
-
-# 2. Start all services with Docker Compose
 docker-compose up -d
 
-# The following services will be running:
-# - App: http://localhost:3000
-# - MongoDB: localhost:27017
-# - Redis: localhost:6379
+# Verify all services are healthy
+docker-compose ps
+
+# Check app health
+curl http://localhost:7575/health
+```
+
+### Services & Ports
+
+| Service | Container Name | Port | URL |
+|---------|---------------|------|-----|
+| **App** | fs-booking-app | 7575 | http://localhost:7575 |
+| **MongoDB** | fs-booking-mongodb | 27017 | mongodb://localhost:27017 |
+| **Redis** | fs-booking-redis | 6379 | redis://localhost:6379 |
+| Redis Commander* | fs-booking-redis-commander | 8081 | http://localhost:8081 |
+| Mongo Express* | fs-booking-mongo-express | 8082 | http://localhost:8082 |
+
+*Available in development mode or with `--profile debug`
+
+### Docker Commands
+
+```bash
+# ═══════════════════════════════════════════════════════════════
+# PRODUCTION
+# ═══════════════════════════════════════════════════════════════
+
+# Start all services (detached)
+docker-compose up -d
+
+# Start with build (after code changes)
+docker-compose up -d --build
 
 # View logs
-docker-compose logs -f app
+docker-compose logs -f           # All services
+docker-compose logs -f app       # App only
+
+# Check service status
+docker-compose ps
 
 # Stop all services
 docker-compose down
-```
 
-#### Development with Docker (Hot Reload)
+# Stop and remove volumes (clean slate)
+docker-compose down -v
 
-```bash
-# Start with development configuration
+# ═══════════════════════════════════════════════════════════════
+# DEVELOPMENT (with hot reload)
+# ═══════════════════════════════════════════════════════════════
+
+# Start development stack
 docker-compose -f docker-compose.dev.yml up -d
 
-# Additional services available:
+# Includes:
+# - Hot reload (code changes apply automatically)
 # - Redis Commander: http://localhost:8081
 # - Mongo Express: http://localhost:8082
+
+# View development logs
+docker-compose -f docker-compose.dev.yml logs -f app
+
+# Stop development stack
+docker-compose -f docker-compose.dev.yml down
+
+# ═══════════════════════════════════════════════════════════════
+# PRODUCTION + DEBUG TOOLS
+# ═══════════════════════════════════════════════════════════════
+
+# Start with debug profile
+docker-compose --profile debug up -d
+
+# ═══════════════════════════════════════════════════════════════
+# MAINTENANCE
+# ═══════════════════════════════════════════════════════════════
+
+# Restart a specific service
+docker-compose restart app
+
+# Rebuild app without cache
+docker-compose build --no-cache app
+
+# Enter container shell
+docker exec -it fs-booking-app sh
+
+# View MongoDB data
+docker exec -it fs-booking-mongodb mongosh fs-booking
+
+# View Redis data
+docker exec -it fs-booking-redis redis-cli
+
+# Check container resources
+docker stats
 ```
 
-#### Production with Debug Tools
+### Environment Configuration
+
+Create `.env` file for custom configuration:
 
 ```bash
-# Start with debug profile (includes Redis Commander & Mongo Express)
-docker-compose --profile debug up -d
+# Application
+PORT=7575
+JWT_SECRET=your-super-secret-jwt-key
+
+# Database (auto-configured in Docker)
+MONGO_URI=mongodb://mongodb:27017/fs-booking
+REDIS_URL=redis://redis:6379
+
+# Payment Gateway (optional)
+PAYMENT_GATEWAY_URL=https://payment.example.com
+DEFAULT_RETURN_URL=https://app.example.com/payment/callback
 ```
 
-### Option 2: Manual Installation
+### Docker Files Structure
+
+```
+fs-booking/
+├── Dockerfile              # Production multi-stage build
+├── Dockerfile.dev          # Development with hot reload
+├── docker-compose.yml      # Production stack
+├── docker-compose.dev.yml  # Development stack
+└── .dockerignore           # Build context exclusions
+```
+
+### Health Checks
+
+All services include health checks:
+
+```bash
+# App health (checks MongoDB + Redis)
+curl http://localhost:7575/health
+
+# Response:
+{
+  "status": "ok",
+  "timestamp": "2024-01-15T10:30:00.000Z",
+  "uptime": 3600,
+  "services": {
+    "mongodb": { "status": "up", "latency": 5 },
+    "redis": { "status": "up", "latency": 2 }
+  }
+}
+
+# Kubernetes probes
+curl http://localhost:7575/health/live   # Liveness
+curl http://localhost:7575/health/ready  # Readiness
+```
+
+### Troubleshooting
+
+```bash
+# Service won't start - check logs
+docker-compose logs app
+
+# Port already in use
+docker-compose down
+lsof -i :7575  # Find process using port
+kill -9 <PID>  # Kill process
+
+# MongoDB connection issues
+docker-compose logs mongodb
+docker exec -it fs-booking-mongodb mongosh --eval "db.adminCommand('ping')"
+
+# Redis connection issues
+docker-compose logs redis
+docker exec -it fs-booking-redis redis-cli ping
+
+# Out of disk space
+docker system prune -a  # Remove unused images/containers
+
+# Rebuild everything fresh
+docker-compose down -v
+docker-compose build --no-cache
+docker-compose up -d
+```
+
+---
+
+## Manual Installation (Without Docker)
 
 ```bash
 # 1. Clone the repository
-git clone <repository-url>
+git clone https://github.com/camhoccode/fs-booking.git
 cd fs-booking
 
 # 2. Install dependencies
 npm install
 
-# 3. Copy environment configuration
-cp .env.example .env
-
-# 4. Configure environment variables
-# Edit .env file with your settings
-
-# 5. Start MongoDB and Redis (using Docker)
+# 3. Start MongoDB and Redis locally
+# Option A: Using Docker for databases only
 docker run -d -p 27017:27017 --name mongodb mongo:7
 docker run -d -p 6379:6379 --name redis redis:7-alpine
 
-# 6. Start development server
+# Option B: Install MongoDB and Redis natively
+# See: https://www.mongodb.com/docs/manual/installation/
+# See: https://redis.io/docs/getting-started/installation/
+
+# 4. Configure environment
+cp .env.example .env
+# Edit .env with your settings
+
+# 5. Start development server
 npm run start:dev
+
+# 6. (Optional) Seed dummy data
+npm run seed
 ```
 
 ### Environment Variables
 
 | Variable | Description | Default |
 |----------|-------------|---------|
+| `PORT` | Application port | `7575` |
 | `MONGO_URI` | MongoDB connection string | `mongodb://localhost:27017/fs-booking` |
 | `REDIS_URL` | Redis connection string | `redis://localhost:6379` |
-| `PORT` | Application port | `3000` |
 | `JWT_SECRET` | JWT signing secret | Required |
 | `PAYMENT_GATEWAY_URL` | Payment gateway base URL | `https://payment.example.com` |
 | `DEFAULT_RETURN_URL` | Default payment callback | `https://app.example.com/payment/callback` |
 
-### Available Scripts
+### NPM Scripts
 
 ```bash
-npm run start:dev     # Start with hot-reload
-npm run start:prod    # Start production build
+npm run start:dev     # Development with hot-reload
+npm run start:prod    # Production mode
 npm run build         # Build for production
 npm run test          # Run unit tests
-npm run test:e2e      # Run end-to-end tests
+npm run test:e2e      # Run E2E tests
+npm run seed          # Seed dummy data
+npm run seed:fresh    # Clear and reseed data
 npm run lint          # Run ESLint
 npm run format        # Run Prettier
 ```
@@ -895,7 +1070,7 @@ export default function () {
     'X-Idempotency-Key': uuidv4(),
   };
 
-  const res = http.post('http://localhost:3000/api/bookings/hold', payload, { headers });
+  const res = http.post('http://localhost:7575/api/bookings/hold', payload, { headers });
 
   check(res, {
     'valid response': (r) => [201, 409, 400].includes(r.status),

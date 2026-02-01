@@ -16,7 +16,7 @@ RUN npm ci
 COPY . .
 
 # Expose ports
-EXPOSE 3000 9229
+EXPOSE 7575 9229
 
 # Start in development mode with hot reload
 CMD ["npm", "run", "start:dev"]
